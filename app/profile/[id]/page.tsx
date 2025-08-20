@@ -1,57 +1,32 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { use } from 'react';
 import { db } from '@/lib/db';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import Navbar from '@/components/Navbar';
-import ProfileForm from '@/components/ProfileForm';
+import Link from 'next/link';
 
-export default function ProfilePage() {
-  const [isEditing, setIsEditing] = useState(false);
-  const { user, isLoading: userLoading } = db.useAuth();
+interface PublicProfilePageProps {
+  params: Promise<{
+    id: string;
+  }>;
+}
 
-  // Query for user's profile
+export default function PublicProfilePage({ params }: PublicProfilePageProps) {
+  const { user: currentUser } = db.useAuth();
+  const resolvedParams = use(params);
+
+  // Query for the profile by ID
   const { isLoading, error, data } = db.useQuery({
     profiles: {
       $: {
-        where: { '$user.id': user?.id }
-      }
+        where: { 'id': resolvedParams.id }
+      },
+      $user: {}
     }
   });
-
-  // Check if this is the user's own profile
-  const isOwnProfile = true;
-
-  if (userLoading) {
-    return (
-      <>
-        <Navbar />
-        <main className="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-center items-center min-h-96">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-4"></div>
-              <p className="text-muted-foreground">Loading...</p>
-            </div>
-          </div>
-        </main>
-      </>
-    );
-  }
-
-  if (!user) {
-    return (
-      <>
-        <Navbar />
-        <main className="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
-          <div className="text-center py-8">
-            <p className="text-muted-foreground">Please log in to view your profile.</p>
-          </div>
-        </main>
-      </>
-    );
-  }
 
   if (isLoading) {
     return (
@@ -61,7 +36,7 @@ export default function ProfilePage() {
           <div className="flex justify-center items-center min-h-96">
             <div className="text-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-4"></div>
-              <p className="text-muted-foreground">Loading your profile...</p>
+              <p className="text-muted-foreground">Loading profile...</p>
             </div>
           </div>
         </main>
@@ -90,34 +65,14 @@ export default function ProfilePage() {
         <Navbar />
         <main className="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
           <div className="text-center py-8">
-            <p className="text-muted-foreground">Profile not found. Please try refreshing the page.</p>
+            <p className="text-muted-foreground">Profile not found.</p>
           </div>
         </main>
       </>
     );
   }
 
-  const handleEditSuccess = () => {
-    setIsEditing(false);
-    // Refresh the page to show updated data
-    window.location.reload();
-  };
-
-  if (isEditing) {
-    return (
-      <>
-        <Navbar />
-        <main className="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
-          <ProfileForm
-            profile={profile}
-            user={user}
-            onCancel={() => setIsEditing(false)}
-            onSuccess={handleEditSuccess}
-          />
-        </main>
-      </>
-    );
-  }
+  const isOwnProfile = currentUser?.id === profile.$user?.id;
 
   return (
     <>
@@ -132,9 +87,9 @@ export default function ProfilePage() {
               </p>
             </div>
             {isOwnProfile && (
-              <Button onClick={() => setIsEditing(true)}>
-                Edit Profile
-              </Button>
+              <Link href="/profile">
+                <Button>Edit Profile</Button>
+              </Link>
             )}
           </div>
         </div>
@@ -150,14 +105,14 @@ export default function ProfilePage() {
                 <div className="flex items-center space-x-4">
                   <div className="w-20 h-20 rounded-full border-2 border-border bg-primary/10 flex items-center justify-center">
                     <span className="text-2xl font-bold text-primary">
-                      {(profile.firstName || user?.email || 'U').charAt(0).toUpperCase()}
+                      {(profile.firstName || profile.$user?.email || 'U').charAt(0).toUpperCase()}
                     </span>
                   </div>
                   <div>
                     <h2 className="text-xl font-semibold">
                       {profile.firstName} {profile.lastName}
                     </h2>
-                    <p className="text-muted-foreground">{user?.email}</p>
+                    <p className="text-muted-foreground">{profile.$user?.email}</p>
                   </div>
                 </div>
 
@@ -253,42 +208,44 @@ export default function ProfilePage() {
 
                 <div>
                   <h3 className="font-medium mb-2">Email</h3>
-                  <p className="text-muted-foreground">{user?.email}</p>
+                  <p className="text-muted-foreground">{profile.$user?.email}</p>
                 </div>
 
-                <div>
-                  <h3 className="font-medium mb-2">Profile Completion</h3>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div
-                      className="bg-primary h-2 rounded-full"
-                      style={{
-                        width: `${Math.round(
-                          ([
-                            profile.bio,
-                            profile.location,
-                            profile.website,
-                            profile.github,
-                            profile.linkedin,
-                            profile.avatar,
-                          ].filter(Boolean).length /
-                            6) *
-                            100
-                        )}%`,
-                      }}
-                    ></div>
+                {profile.bio && profile.location && profile.website && profile.github && profile.linkedin && profile.avatar && (
+                  <div>
+                    <h3 className="font-medium mb-2">Profile Completion</h3>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div
+                        className="bg-primary h-2 rounded-full"
+                        style={{
+                          width: `${Math.round(
+                            ([
+                              profile.bio,
+                              profile.location,
+                              profile.website,
+                              profile.github,
+                              profile.linkedin,
+                              profile.avatar,
+                            ].filter(Boolean).length /
+                              6) *
+                              100
+                          )}%`,
+                        }}
+                      ></div>
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      {[
+                        profile.bio,
+                        profile.location,
+                        profile.website,
+                        profile.github,
+                        profile.linkedin,
+                        profile.avatar,
+                      ].filter(Boolean).length}
+                      /6 fields completed
+                    </p>
                   </div>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    {[
-                      profile.bio,
-                      profile.location,
-                      profile.website,
-                      profile.github,
-                      profile.linkedin,
-                      profile.avatar,
-                    ].filter(Boolean).length}
-                    /6 fields completed
-                  </p>
-                </div>
+                )}
               </CardContent>
             </Card>
           </div>

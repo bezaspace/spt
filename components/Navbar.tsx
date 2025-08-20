@@ -4,6 +4,7 @@ import React from 'react';
 import { db } from '@/lib/db';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
+import UserSearch from './UserSearch';
 
 interface NavbarProps {
   variant?: 'default' | 'auth';
@@ -57,27 +58,28 @@ export default function Navbar({ variant = 'default' }: NavbarProps) {
             </Link>
           </div>
 
-          {/* Navigation Links */}
-          <div className="hidden md:flex items-center space-x-8">
-            <Link
-              href="/"
-              className="text-foreground hover:text-primary transition-colors font-medium"
-            >
-              Dashboard
-            </Link>
-            <Link
-              href="/projects"
-              className="text-muted-foreground hover:text-primary transition-colors"
-            >
-              Browse Projects
-            </Link>
-            <Link
-              href="/profile"
-              className="text-muted-foreground hover:text-primary transition-colors"
-            >
-              Profile
-            </Link>
-          </div>
+           {/* Navigation Links */}
+           <div className="hidden md:flex items-center space-x-8">
+             <Link
+               href="/"
+               className="text-foreground hover:text-primary transition-colors font-medium"
+             >
+               Dashboard
+             </Link>
+             <Link
+               href="/projects"
+               className="text-muted-foreground hover:text-primary transition-colors"
+             >
+               Browse Projects
+             </Link>
+             <Link
+               href="/profile"
+               className="text-muted-foreground hover:text-primary transition-colors"
+             >
+               Profile
+             </Link>
+             <UserSearch />
+           </div>
 
           {/* User Profile Section */}
           <div className="flex items-center space-x-4">
@@ -107,6 +109,9 @@ export default function Navbar({ variant = 'default' }: NavbarProps) {
 
         {/* Mobile Navigation */}
         <div className="md:hidden border-t border-border py-2">
+          <div className="px-4 pb-2">
+            <UserSearch />
+          </div>
           <div className="flex justify-around">
             <Link
               href="/"

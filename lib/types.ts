@@ -40,3 +40,15 @@ export interface User {
   password?: string;
   authMethod?: 'magic' | 'credentials';
 }
+
+export interface UserSearchResult {
+  id: string;
+  userId: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  bio?: string;
+  location?: string;
+  avatar?: string;
+  skills?: string[];
+}
