@@ -72,10 +72,10 @@ export default function Navbar({ variant = 'default' }: NavbarProps) {
               Browse Projects
             </Link>
             <Link
-              href="/about"
+              href="/profile"
               className="text-muted-foreground hover:text-primary transition-colors"
             >
-              About
+              Profile
             </Link>
           </div>
 
@@ -121,10 +121,10 @@ export default function Navbar({ variant = 'default' }: NavbarProps) {
               Browse
             </Link>
             <Link
-              href="/about"
+              href="/profile"
               className="text-muted-foreground hover:text-primary transition-colors text-sm"
             >
-              About
+              Profile
             </Link>
           </div>
         </div>

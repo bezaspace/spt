@@ -16,6 +16,13 @@ const _schema = i.schema({
       firstName: i.string(),
       lastName: i.string(),
       createdAt: i.date(),
+      bio: i.string().optional(),
+      location: i.string().optional(),
+      website: i.string().optional(),
+      github: i.string().optional(),
+      linkedin: i.string().optional(),
+      skills: i.json().optional(),
+      avatar: i.string().optional(),
     }),
     projects: i.entity({
       title: i.string(),
