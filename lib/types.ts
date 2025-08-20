@@ -22,3 +22,21 @@ export interface ProjectFormData {
   repositoryUrl?: string;
   contactInfo: string;
 }
+
+// Authentication types
+export interface SignupData {
+  email: string;
+  password: string;
+}
+
+export interface SigninData {
+  email: string;
+  password: string;
+}
+
+export interface User {
+  id: string;
+  email: string;
+  password?: string;
+  authMethod?: 'magic' | 'credentials';
+}
