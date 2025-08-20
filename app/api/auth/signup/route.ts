@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { init } from '@instantdb/admin';
+import { init, id } from '@instantdb/admin';
 import bcrypt from 'bcryptjs';
 import schema from '../../../../instant.schema';
 
@@ -103,13 +103,18 @@ export async function POST(request: NextRequest) {
     const user = await db.auth.getUser({ email });
 
     if (user) {
-      // Store credentials in a separate entity
+      // Store credentials and create profile in a single transaction
       await db.transact([
         db.tx.credentials[user.id].update({
           email,
           password: hashedPassword,
           userId: user.id
-        })
+        }),
+        db.tx.profiles[id()].update({
+          firstName: email.split('@')[0], // Use email prefix as default name
+          lastName: '',
+          createdAt: new Date()
+        }).link({ $user: user.id })
       ]);
     }
 

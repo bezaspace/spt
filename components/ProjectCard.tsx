@@ -3,6 +3,7 @@ import { Calendar, Users, Mail, Code } from 'lucide-react';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { useRouter } from 'next/navigation';
 
 interface ProjectCardProps {
   project: Project;
@@ -23,16 +24,32 @@ const statusLabels = {
 };
 
 export default function ProjectCard({ project }: ProjectCardProps) {
-  const formatDate = (date: Date) => {
+  const router = useRouter();
+
+  const formatDate = (date: Date | string) => {
+    const dateObj = typeof date === 'string' ? new Date(date) : date;
+
+    // Check if the date is valid
+    if (isNaN(dateObj.getTime())) {
+      return 'Invalid date';
+    }
+
     return new Intl.DateTimeFormat('en-US', {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
-    }).format(date);
+    }).format(dateObj);
+  };
+
+  const handleCardClick = () => {
+    router.push(`/projects/${project.id}`);
   };
 
   return (
-    <Card className="h-full hover:shadow-lg transition-shadow duration-200">
+    <Card
+      className="h-full hover:shadow-lg transition-shadow duration-200 cursor-pointer"
+      onClick={handleCardClick}
+    >
       <CardHeader className="pb-3">
         <div className="flex justify-between items-start gap-2">
           <CardTitle className="text-lg line-clamp-2 leading-tight">

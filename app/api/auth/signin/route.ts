@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { init } from '@instantdb/admin';
+import { init, id } from '@instantdb/admin';
 import bcrypt from 'bcryptjs';
 import schema from '../../../../instant.schema';
 
@@ -67,6 +67,24 @@ export async function POST(request: NextRequest) {
         { error: 'Invalid email or password' },
         { status: 401 }
       );
+    }
+
+    // Check if user has a profile, create one if not
+    const profileResult = await db.query({
+      profiles: {
+        $: { where: { '$user.id': user.id } }
+      }
+    });
+
+    if (!profileResult.profiles || profileResult.profiles.length === 0) {
+      // Create profile for existing user
+      await db.transact([
+        db.tx.profiles[id()].update({
+          firstName: email.split('@')[0], // Use email prefix as default name
+          lastName: '',
+          createdAt: new Date()
+        }).link({ $user: user.id })
+      ]);
     }
 
     // Create a new token for the user

@@ -2,7 +2,6 @@
 
 import React, { useState } from 'react';
 import { db } from '../lib/db';
-import { id } from '@instantdb/react';
 import { Button } from '@/components/ui/button';
 
 export default function Dashboard() {
@@ -33,22 +32,53 @@ export default function Dashboard() {
   }
 
   const { profiles, projects } = data;
-  const profile = profiles[0]; // Should only be one profile per user
+  const profile = profiles?.[0]; // Should only be one profile per user
+
+  // If no profile exists yet, show a loading state
+  if (!profile) {
+    return (
+      <main className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+        <div className="flex justify-center items-center min-h-screen">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Setting up your profile...</p>
+          </div>
+        </div>
+      </main>
+    );
+  }
 
   const handleCreateProject = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newProjectTitle.trim()) return;
 
-    await db.transact([
-      db.tx.projects[id()].update({
-        title: newProjectTitle,
-        description: newProjectDescription,
-        createdAt: new Date().toISOString(),
-      }).link({ owner: profile.id }),
-    ]);
+    try {
+      const response = await fetch('/api/projects', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          title: newProjectTitle,
+          description: newProjectDescription,
+          userId: user.id
+        })
+      });
 
-    setNewProjectTitle('');
-    setNewProjectDescription('');
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to create project');
+      }
+
+      // Refresh the page to show the new project
+      window.location.reload();
+
+      setNewProjectTitle('');
+      setNewProjectDescription('');
+    } catch (error) {
+      console.error('Error creating project:', error);
+      alert('Failed to create project. Please try again.');
+    }
   };
 
 

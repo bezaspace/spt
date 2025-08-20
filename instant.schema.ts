@@ -21,6 +21,12 @@ const _schema = i.schema({
       title: i.string(),
       description: i.string().optional(),
       createdAt: i.date(),
+      status: i.string().optional(),
+      tags: i.json().optional(),
+      maxMembers: i.number().optional(),
+      currentMembers: i.number().optional(),
+      repositoryUrl: i.string().optional(),
+      contactInfo: i.string().optional(),
     }),
   },
   links: {
