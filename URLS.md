@@ -1,9 +1,0 @@
-https://www.instantdb.com/docs
-https://www.instantdb.com/docs/init
-https://www.instantdb.com/docs/modeling-data
-https://www.instantdb.com/docs/instaml
-https://www.instantdb.com/docs/instaql
-https://www.instantdb.com/docs/backend
-https://www.instantdb.com/docs/patterns
-https://www.instantdb.com/docs/auth
-https://www.instantdb.com/docs/auth/google-oauth

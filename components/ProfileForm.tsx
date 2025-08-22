@@ -12,13 +12,14 @@ import { profileSchema, type ProfileFormData } from '@/lib/validations/profile';
 
 
 interface ProfileFormProps {
-  profile: any;
+  profile?: any; // Made optional for creation
   user: any;
   onCancel: () => void;
   onSuccess: () => void;
+  mode?: 'create' | 'edit'; // New prop to distinguish between create and edit
 }
 
-export default function ProfileForm({ profile, user, onCancel, onSuccess }: ProfileFormProps) {
+export default function ProfileForm({ profile, user, onCancel, onSuccess, mode = 'edit' }: ProfileFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -51,8 +52,9 @@ export default function ProfileForm({ profile, user, onCancel, onSuccess }: Prof
         return;
       }
 
+      const method = mode === 'create' ? 'POST' : 'PUT';
       const response = await fetch('/api/profile', {
-        method: 'PUT',
+        method,
         headers: {
           'Content-Type': 'application/json',
         },
@@ -64,14 +66,14 @@ export default function ProfileForm({ profile, user, onCancel, onSuccess }: Prof
 
       if (!response.ok) {
         const errorData = await response.json();
-        console.error('Profile update failed:', errorData);
-        throw new Error(errorData.error || 'Failed to update profile');
+        console.error('Profile operation failed:', errorData);
+        throw new Error(errorData.error || `Failed to ${mode} profile`);
       }
 
       onSuccess();
     } catch (error) {
-      console.error('Profile update error:', error);
-      setError(error instanceof Error ? error.message : 'Failed to update profile');
+      console.error('Profile operation error:', error);
+      setError(error instanceof Error ? error.message : `Failed to ${mode} profile`);
     } finally {
       setIsSubmitting(false);
     }
@@ -80,7 +82,7 @@ export default function ProfileForm({ profile, user, onCancel, onSuccess }: Prof
   return (
     <Card className="w-full max-w-2xl mx-auto">
       <CardHeader>
-        <CardTitle>Edit Profile</CardTitle>
+        <CardTitle>{mode === 'create' ? 'Create Profile' : 'Edit Profile'}</CardTitle>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
@@ -207,7 +209,10 @@ export default function ProfileForm({ profile, user, onCancel, onSuccess }: Prof
               Cancel
             </Button>
             <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? 'Saving...' : 'Save Changes'}
+              {isSubmitting
+                ? (mode === 'create' ? 'Creating...' : 'Saving...')
+                : (mode === 'create' ? 'Create Profile' : 'Save Changes')
+              }
             </Button>
           </div>
         </form>

@@ -11,7 +11,7 @@ interface NavbarProps {
 }
 
 export default function Navbar({ variant = 'default' }: NavbarProps) {
-  const { user } = db.useAuth();
+  const { user } = db.useAuth() as { user: any };
 
   const handleSignOut = async () => {
     await db.auth.signOut();
@@ -24,7 +24,7 @@ export default function Navbar({ variant = 'default' }: NavbarProps) {
         where: { '$user.id': user?.id }
       }
     }
-  });
+  }) as { data: any };
 
   const profile = data?.profiles?.[0];
 

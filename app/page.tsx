@@ -19,7 +19,7 @@ export default function Home() {
   if (error) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-red-500">Error: {error.message}</div>
+        <div className="text-red-500">Error: {String(error)}</div>
       </div>
     );
   }

@@ -177,9 +177,7 @@ export default function CredentialsLogin() {
         </div>
       )}
 
-      <div className="text-xs text-gray-500 text-center bg-blue-50 p-3 rounded-md">
-        <strong>Note:</strong> After {mode === 'signin' ? 'verifying' : 'creating'} your account, you&apos;ll need to use magic code authentication to complete sign in. This is due to current InstantDB limitations.
-      </div>
+
     </div>
   );
 }

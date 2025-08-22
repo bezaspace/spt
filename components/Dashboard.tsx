@@ -3,14 +3,15 @@
 import React, { useState } from 'react';
 import { db } from '../lib/db';
 import { Button } from '@/components/ui/button';
+import ProfileSetupForm from './ProfileSetupForm';
 
 export default function Dashboard() {
-  const user = db.useUser();
+  const { isLoading: authLoading, user, error: authError } = db.useAuth() as { isLoading: boolean; user: any; error: any };
   const [newProjectTitle, setNewProjectTitle] = useState('');
   const [newProjectDescription, setNewProjectDescription] = useState('');
 
-  // Query for user's profile and projects
-  const { isLoading, error, data } = db.useQuery({
+  // Query for user's profile and projects - always call hooks at the top
+  const { isLoading, error, data } = db.useQuery(user ? {
     profiles: {
       $: {
         where: { '$user.id': user.id }
@@ -21,32 +22,10 @@ export default function Dashboard() {
         where: { 'owner.$user.id': user.id }
       }
     }
-  });
+  } : {}) as { isLoading: boolean; error: Error | null; data: any };
 
-  if (isLoading) {
-    return <div className="flex justify-center items-center min-h-screen">Loading...</div>;
-  }
-
-  if (error) {
-    return <div className="text-red-500 p-4">Error: {error.message}</div>;
-  }
-
-  const { profiles, projects } = data;
+  const { profiles, projects } = data || {};
   const profile = profiles?.[0]; // Should only be one profile per user
-
-  // If no profile exists yet, show a loading state
-  if (!profile) {
-    return (
-      <main className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-center items-center min-h-screen">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-4"></div>
-            <p className="text-muted-foreground">Setting up your profile...</p>
-          </div>
-        </div>
-      </main>
-    );
-  }
 
   const handleCreateProject = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -82,6 +61,54 @@ export default function Dashboard() {
   };
 
 
+
+  // Show loading while auth is loading
+  if (authLoading) {
+    return <div className="flex justify-center items-center min-h-screen">Loading...</div>;
+  }
+
+  // Show error if auth failed
+  if (authError) {
+    return <div className="text-red-500 p-4">Authentication error: {String(authError)}</div>;
+  }
+
+  // Show message if user is not authenticated
+  if (!user) {
+    return (
+      <main className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+        <div className="flex justify-center items-center min-h-screen">
+          <div className="text-center">
+            <p className="text-muted-foreground mb-4">Please sign in to access your dashboard.</p>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  // Show loading while data is loading
+  if (isLoading) {
+    return <div className="flex justify-center items-center min-h-screen">Loading...</div>;
+  }
+
+  // Show error if data loading failed
+  if (error) {
+    return <div className="text-red-500 p-4">Error: {error.message}</div>;
+  }
+
+  // If no profile exists yet, show profile setup form
+   if (!profile) {
+     return (
+       <main className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+         <div className="max-w-2xl mx-auto">
+           <div className="text-center mb-8">
+             <h1 className="text-3xl font-bold text-foreground mb-2">Welcome to Your Dashboard!</h1>
+             <p className="text-muted-foreground">Let's set up your profile to get started.</p>
+           </div>
+           <ProfileSetupForm user={user} onSuccess={() => window.location.reload()} />
+         </div>
+       </main>
+     );
+   }
 
   return (
     <main className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
@@ -137,7 +164,7 @@ export default function Dashboard() {
             <p className="text-muted-foreground">No projects yet. Create your first project!</p>
           ) : (
             <div className="space-y-4">
-              {projects.map((project) => (
+              {projects.map((project: any) => (
                 <div key={project.id} className="border border-border rounded-lg p-4 hover:bg-accent/50 transition-colors">
                   <h3 className="font-medium text-card-foreground">{project.title}</h3>
                   {project.description && (

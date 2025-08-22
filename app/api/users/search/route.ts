@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { init } from '@instantdb/admin';
-import schema from '../../../../instant.schema';
+import { getAdminFirestore } from '@/lib/firebaseAdmin';
 
 export async function GET(request: NextRequest) {
   try {
@@ -22,34 +21,33 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const db = init({
-      appId: APP_ID,
-      adminToken: ADMIN_TOKEN,
-      schema
-    });
-
-    // Search profiles by multiple fields
+    // Search profiles by multiple fields using Firestore and in-memory filtering
     const searchTerm = query.toLowerCase().trim();
 
-    const result = await db.query({
-      profiles: {
-        $user: {}
-      }
+    // Initialize Firestore
+    const adminFirestore = getAdminFirestore();
+
+    // Fetch profiles (limit to 100 for safety)
+    const profilesSnap = await adminFirestore.collection('profiles').limit(100).get();
+    if (profilesSnap.empty) return NextResponse.json([]);
+
+    const profiles = profilesSnap.docs.map((d) => {
+      const p = d.data() as Record<string, unknown>;
+      // Attempt to find associated user email from users collection if stored
+      // Our schema stores userId on profile; fetch user email from Firebase Auth (not available here),
+      // so rely on profile.email if present.
+      return {
+        id: d.id,
+        ...p
+      };
     });
 
-    if (!result.profiles) {
-      return NextResponse.json([]);
-    }
-
-    // Filter profiles based on search term
-    const matchingProfiles = result.profiles.filter((profile: any) => {
-      const fullName = `${profile.firstName || ''} ${profile.lastName || ''}`.toLowerCase();
-      const email = profile.$user?.email?.toLowerCase() || '';
-      const bio = profile.bio?.toLowerCase() || '';
-      const location = profile.location?.toLowerCase() || '';
-      const skills = Array.isArray(profile.skills)
-        ? profile.skills.join(' ').toLowerCase()
-        : '';
+    const matchingProfiles = profiles.filter((profile: Record<string, unknown>) => {
+      const fullName = `${String(profile.firstName || '')} ${String(profile.lastName || '')}`.toLowerCase();
+      const email = String(profile.email || '').toLowerCase();
+      const bio = String(profile.bio || '').toLowerCase();
+      const location = String(profile.location || '').toLowerCase();
+      const skills = Array.isArray(profile.skills) ? (profile.skills as string[]).join(' ').toLowerCase() : '';
 
       return fullName.includes(searchTerm) ||
              email.includes(searchTerm) ||
@@ -58,13 +56,12 @@ export async function GET(request: NextRequest) {
              skills.includes(searchTerm);
     });
 
-    // Transform and limit results
-    const users = matchingProfiles.slice(0, 10).map((profile: any) => ({
+    const users = matchingProfiles.slice(0, 10).map((profile: Record<string, unknown>) => ({
       id: profile.id,
-      userId: profile.$user?.id,
+      userId: profile.userId,
       firstName: profile.firstName,
       lastName: profile.lastName,
-      email: profile.$user?.email,
+      email: profile.email,
       bio: profile.bio,
       location: profile.location,
       avatar: profile.avatar,

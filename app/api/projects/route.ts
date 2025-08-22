@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { init, id } from '@instantdb/admin';
-import schema from '../../../instant.schema';
+import { getAdminFirestore, admin } from '@/lib/firebaseAdmin';
 
 export async function GET() {
   try {
@@ -15,60 +14,40 @@ export async function GET() {
       );
     }
 
-    const db = init({
-      appId: APP_ID,
-      adminToken: ADMIN_TOKEN,
-      schema
-    });
+    // Initialize Firestore
+    const adminFirestore = getAdminFirestore();
 
-    // Fetch all projects with their owners
-    const result = await db.query({
-      projects: {
-        owner: {}
-      }
-    });
-
-    if (!result.projects) {
-      return NextResponse.json([]);
-    }
-
-    // Transform the data to match the Project interface
-    const projects = result.projects.map((project: any) => {
-      // Safely handle date conversion
-      let createdAt: Date;
-      try {
-        if (project.createdAt instanceof Date) {
-          createdAt = project.createdAt;
-        } else if (typeof project.createdAt === 'string' || typeof project.createdAt === 'number') {
-          createdAt = new Date(project.createdAt);
-        } else {
-          createdAt = new Date(); // Fallback to current date
+    // Fetch projects from Firestore and join owner profile
+    const projSnap = await adminFirestore.collection('projects').orderBy('createdAt', 'desc').get();
+    const projects = await Promise.all(projSnap.docs.map(async (d: any) => {
+      const p = d.data() as Record<string, unknown>;
+      let author = 'Unknown Author';
+      if (p.ownerId) {
+        const ownerId = String(p.ownerId);
+        const profSnap = await adminFirestore.collection('profiles').doc(ownerId).get().catch(() => null);
+        if (profSnap && profSnap.exists) {
+          const prof = profSnap.data() as Record<string, unknown>;
+          const fn = prof.firstName as string | undefined;
+          const ln = prof.lastName as string | undefined;
+          const em = prof.email as string | undefined;
+          author = fn ? `${fn} ${ln || ''}`.trim() : em || 'Unknown Author';
         }
-
-        // Check if the date is valid
-        if (isNaN(createdAt.getTime())) {
-          createdAt = new Date(); // Fallback to current date if invalid
-        }
-      } catch (error) {
-        createdAt = new Date(); // Fallback to current date on error
       }
 
       return {
-        id: project.id,
-        title: project.title,
-        description: project.description || '',
-        author: project.owner?.firstName
-          ? `${project.owner.firstName} ${project.owner.lastName || ''}`.trim()
-          : project.owner?.email || 'Unknown Author',
-        tags: Array.isArray(project.tags) ? project.tags : [],
-        createdAt,
-        status: project.status || 'planning',
-        maxMembers: project.maxMembers,
-        currentMembers: project.currentMembers || 1,
-        repositoryUrl: project.repositoryUrl,
-        contactInfo: project.contactInfo || project.owner?.email || ''
+        id: d.id,
+        title: p.title,
+        description: p.description || '',
+        author,
+        tags: Array.isArray(p.tags) ? p.tags : [],
+  createdAt: (p.createdAt && typeof p.createdAt === 'object' && 'toDate' in p.createdAt) ? (p.createdAt as any).toDate() : (p.createdAt || new Date()),
+        status: p.status || 'planning',
+        maxMembers: p.maxMembers,
+        currentMembers: p.currentMembers || 1,
+        repositoryUrl: p.repositoryUrl,
+        contactInfo: p.contactInfo || ''
       };
-    });
+    }));
 
     return NextResponse.json(projects);
 
@@ -95,11 +74,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const db = init({
-      appId: APP_ID,
-      adminToken: ADMIN_TOKEN,
-      schema
-    });
+    // Initialize Firestore
+    const adminFirestore = getAdminFirestore();
 
     const {
       title,
@@ -120,30 +96,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get user's profile
-    const profileResult = await db.query({
-      profiles: {
-        $: { where: { '$user.id': userId } }
-      }
-    });
-
-    if (!profileResult.profiles || profileResult.profiles.length === 0) {
-      return NextResponse.json(
-        { error: 'User profile not found' },
-        { status: 404 }
-      );
+    // Get user's profile (expects profile doc id or userId)
+    const profilesSnap = await adminFirestore.collection('profiles').where('userId', '==', userId).get();
+    if (profilesSnap.empty) {
+      return NextResponse.json({ error: 'User profile not found' }, { status: 404 });
     }
 
-    const profile = profileResult.profiles[0];
+    const profileDoc = profilesSnap.docs[0];
 
-    // Create the project linked to the profile
-    const projectData: any = {
+    const projectData: Record<string, unknown> = {
       title,
       description: description || '',
-      createdAt: new Date()
+      createdAt: admin.firestore.FieldValue ? admin.firestore.FieldValue.serverTimestamp() : new Date(),
+      ownerId: profileDoc.id,
     };
 
-    // Add optional fields if provided
     if (status) projectData.status = status;
     if (tags && Array.isArray(tags)) projectData.tags = tags;
     if (maxMembers !== undefined) projectData.maxMembers = maxMembers;
@@ -151,14 +118,9 @@ export async function POST(request: NextRequest) {
     if (repositoryUrl) projectData.repositoryUrl = repositoryUrl;
     if (contactInfo) projectData.contactInfo = contactInfo;
 
-    await db.transact([
-      db.tx.projects[id()].update(projectData).link({ owner: profile.id })
-    ]);
+    await adminFirestore.collection('projects').add(projectData);
 
-    return NextResponse.json({
-      success: true,
-      message: 'Project created successfully!'
-    });
+    return NextResponse.json({ success: true, message: 'Project created successfully!' });
 
   } catch (error: unknown) {
     console.error('Project creation error:', error);

@@ -34,3 +34,18 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+## Environment variables
+
+This project uses Firebase Admin on the server for auth and Firestore. Create a local `.env.local` (or set envs in your hosting platform) and provide the following values. See `.env.example` for a template.
+
+- FIREBASE_PROJECT_ID
+- FIREBASE_CLIENT_EMAIL
+- FIREBASE_PRIVATE_KEY (paste the private key replacing newlines with `\n`)
+
+There are also some InstantDB-related env variables used by the API routes:
+
+- NEXT_PUBLIC_INSTANTDB_APP_ID
+- INSTANTDB_APP_ID
+- INSTANTDB_ADMIN_TOKEN
+

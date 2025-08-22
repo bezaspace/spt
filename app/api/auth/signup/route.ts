@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { init, id } from '@instantdb/admin';
 import bcrypt from 'bcryptjs';
-import schema from '../../../../instant.schema';
+import { getAdminAuth, getAdminFirestore } from '@/lib/firebaseAdmin';
 
 // Password validation
 async function validatePassword(password: string): Promise<{ isValid: boolean; errors: string[] }> {
@@ -37,32 +36,8 @@ async function hashPassword(password: string): Promise<string> {
 
 export async function POST(request: NextRequest) {
   try {
-    // Initialize admin DB inside the request handler
-    const APP_ID = process.env.NEXT_PUBLIC_INSTANTDB_APP_ID || process.env.INSTANTDB_APP_ID;
-    const ADMIN_TOKEN = process.env.INSTANTDB_ADMIN_TOKEN;
 
-    console.log('Environment check:', {
-      APP_ID: APP_ID ? 'Present' : 'Missing',
-      ADMIN_TOKEN: ADMIN_TOKEN ? 'Present' : 'Missing',
-      allEnv: Object.keys(process.env).filter(key => key.includes('INSTANT')),
-      raw_APP_ID: process.env.NEXT_PUBLIC_INSTANTDB_APP_ID,
-      raw_APP_ID_alt: process.env.INSTANTDB_APP_ID
-    });
-
-    if (!APP_ID || !ADMIN_TOKEN) {
-      return NextResponse.json(
-        { error: `Missing environment variables. APP_ID: ${!!APP_ID}, ADMIN_TOKEN: ${!!ADMIN_TOKEN}` },
-        { status: 500 }
-      );
-    }
-
-    const db = init({
-      appId: APP_ID,
-      adminToken: ADMIN_TOKEN,
-      schema
-    });
-
-    const { email, password } = await request.json();
+  const { email, password } = await request.json();
 
     if (!email || !password) {
       return NextResponse.json(
@@ -80,49 +55,44 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if user already exists
+    // Initialize firebase admin and get instances
+    const adminAuth = getAdminAuth();
+    const adminFirestore = getAdminFirestore();
+
+    // Check if user already exists in Firebase
     try {
-      const existingUser = await db.auth.getUser({ email });
+      const existingUser = await adminAuth.getUserByEmail(email);
       if (existingUser) {
-        return NextResponse.json(
-          { error: 'User with this email already exists' },
-          { status: 409 }
-        );
+        return NextResponse.json({ error: 'User with this email already exists' }, { status: 409 });
       }
-    } catch (error) {
-      // User doesn't exist, which is what we want
+    } catch (e) {
+      // user does not exist - continue
     }
 
     // Hash password
     const hashedPassword = await hashPassword(password);
 
-    // Create user with InstantDB auth system
-    const token = await db.auth.createToken(email);
+    // Create Firebase Auth user
+    const created = await adminAuth.createUser({ email, password });
 
-    // Get the created user
-    const user = await db.auth.getUser({ email });
-
-    if (user) {
-      // Store credentials and create profile in a single transaction
-      await db.transact([
-        db.tx.credentials[user.id].update({
-          email,
-          password: hashedPassword,
-          userId: user.id
-        }),
-        db.tx.profiles[id()].update({
-          firstName: email.split('@')[0], // Use email prefix as default name
-          lastName: '',
-          createdAt: new Date()
-        }).link({ $user: user.id })
-      ]);
-    }
-
-    return NextResponse.json({
-      success: true,
-      message: 'Account created successfully!',
-      token
+    // Store credentials and profile in Firestore
+    await adminFirestore.collection('credentials').doc(created.uid).set({
+      email,
+      password: hashedPassword,
+      userId: created.uid,
     });
+
+    await adminFirestore.collection('profiles').add({
+      firstName: email.split('@')[0],
+      lastName: '',
+      createdAt: new Date(),
+      userId: created.uid,
+    });
+
+    // Create custom token
+    const token = await adminAuth.createCustomToken(created.uid);
+
+    return NextResponse.json({ success: true, message: 'Account created successfully!', token });
 
   } catch (error: unknown) {
     console.error('Signup error:', error);
